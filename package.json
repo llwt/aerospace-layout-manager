@@ -1,8 +1,12 @@
 {
-  "name": "aerospace",
+  "name": "flightcontrol",
   "module": "index.ts",
   "type": "module",
   "private": true,
+  "scripts": {
+    "dev": "bun run --watch index.ts --layout dev --config-file ./layouts.json",
+    "build": "bun build ./index.ts --compile --outfile build/flightcontrol"
+  },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "@types/bun": "latest"

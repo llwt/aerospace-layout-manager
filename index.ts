@@ -3,8 +3,6 @@
 import { $ } from "bun";
 import { parseArgs } from "node:util";
 
-
-
 // Types
 type WorkspaceLayout = "h_tiles"|"v_tiles"|"h_accordion"|"v_accordion"|"tiles"|"accordion"|"horizontal"|"vertical"|"tiling"|"floating"
 type Orientation = "horizontal" | "vertical";
@@ -38,13 +36,21 @@ const args = parseArgs({
     args: process.argv.slice(2),
     options: {
         layout: { type: "string", short: "l" },
-        configFile: { type: "string", short: "c", default: "layouts.json" }, // todo: add actual config location
+    configFile: { type: "string", short: "c", default: "~/.config/aerospace/layouts.json" },
+        listLayouts: { type: "boolean", short: "L" },
     },
     strict: true,
     allowPositionals: true,
 });
 
 const layoutName = args.values.layout || args.positionals[0];
+const configFilePath = await $`echo ${args.values.configFile}`.text();
+const layoutConfig: LayoutConfig = await Bun.file(configFilePath.trim()).json();
+
+if(args.values.listLayouts) {
+    console.log(Object.keys(layoutConfig.layouts).join("\n"));
+    process.exit(0);
+}
 
 
 if(!layoutName) {
@@ -52,9 +58,9 @@ if(!layoutName) {
 }
 
 
-const layoutConfig: LayoutConfig = await Bun.file(args.values.configFile).json();
+
 const layout = layoutConfig.layouts[layoutName];
-const stashWorkspace = layoutConfig.stashWorkspace;
+const stashWorkspace = layoutConfig.stashWorkspace ?? "S";
 
 if(!layout) {
     throw new Error("Layout not found");
@@ -98,31 +104,26 @@ async function focusWindow(windowId: string) {
 
 // remove all windows from workspace
 async function clearWorkspace(workspace: string) {
-
     const windows = await getWindowsInWorkspace(workspace);
-    console.log("windows:", windows);
 
     for (const window of windows) {
         if(!!window['window-id']) {
             await moveWindow(window['window-id'], stashWorkspace);
-            console.log("moved window", window['window-id'], "to stash");
         }
     }
 }
 
 async function getWindowId(bundleId: string) {
     const bundleJson = await $`aerospace list-windows --monitor all --app-bundle-id "${bundleId}" --json`.json();
-    console.log("bundleJson for", bundleId, ":", bundleJson);
     const windowId = bundleJson?.length > 0 ? bundleJson[0]["window-id"] : null;
     if(!windowId) {
-        console.log("no windowId found for", bundleId);
+        console.log("No windowId found for", bundleId);
     }
     return windowId;
 }
 
 async function launchIfNotRunning(bundleId: string) {
     const isRunning = await $`osascript -e "application id \"${bundleId}\" is running" | grep -q true`.text() === "true";
-    console.log("isRunning:", isRunning);
     if (!isRunning) {
         await $`open -b "${bundleId}"`;
     }
@@ -130,12 +131,12 @@ async function launchIfNotRunning(bundleId: string) {
 
 async function ensureWindow(bundleId: string) {
     await launchIfNotRunning(bundleId);
-    for await (const i of Array(10)) {
+    for await (const i of Array(30)) {
         const windowId = await getWindowId(bundleId);
         if(windowId) {
             return windowId;
         }
-        await new Promise(resolve => setTimeout(resolve, 1000));
+        await new Promise(resolve => setTimeout(resolve, 100));
     }
     return null;
 }
@@ -144,10 +145,8 @@ async function ensureWindow(bundleId: string) {
 
 async function setWorkspaceLayout(workspace: string, layout: WorkspaceLayout) {
     const workspaceWindows = await getWindowsInWorkspace(workspace);
-    console.log("workspaceWindows:", workspaceWindows);
     if(workspaceWindows.length > 0) {
         const windowId = workspaceWindows?.[0]?.['window-id'];
-        console.log("setting workspace layout to", layout, "for window", windowId);
         await $`aerospace layout ${layout} --window-id ${windowId}`.nothrow();
     }
 }
@@ -155,8 +154,6 @@ async function setWorkspaceLayout(workspace: string, layout: WorkspaceLayout) {
 async function traverseTreeMove(tree: LayoutItem[], depth = 0, parent: LayoutGroup | null = null) {
     for await (const [i, item] of tree.entries()) {
         if ("bundleId" in item) {
-            console.log("item:", item, "depth:", depth, "parent:", parent, "i:", i);
-            
             const windowId = await ensureWindow(item.bundleId);
 
             if(windowId) {
@@ -165,7 +162,6 @@ async function traverseTreeMove(tree: LayoutItem[], depth = 0, parent: LayoutGro
 
          
         } else if ("windows" in item) {
-            console.log("section:", item.orientation, "depth:", depth);
             await traverseTreeMove(item.windows, depth + 1, item);
         }
     }
@@ -174,7 +170,6 @@ async function traverseTreeMove(tree: LayoutItem[], depth = 0, parent: LayoutGro
 
 async function traverseTreeReposition(tree: LayoutItem[], depth = 0, parent: LayoutGroup | null = null) {
     for await (const [i, item] of tree.entries()) {
-        console.log("item:", item, "depth:", depth, "parent:", parent, "i:", i);
         if(depth === 0 && i === 0) {
             // set workspace layout after moving first window
             await flattenWorkspace(layout.workspace);
@@ -184,9 +179,7 @@ async function traverseTreeReposition(tree: LayoutItem[], depth = 0, parent: Lay
             if(depth > 0 && i > 0) {
                 // subsequent windows in a group should be joined with the previous window
                 const windowId = await getWindowId(item.bundleId);
-                console.log(`to be joined with previous window: ${item.bundleId}`);
                 if(windowId) {
-                    console.log(`joining ${item.bundleId} with previous window`);
                     await focusWindow(windowId);
                     await joinItemWithPreviousWindow(windowId);
                 }
@@ -202,9 +195,7 @@ async function traverseTreeReposition(tree: LayoutItem[], depth = 0, parent: Lay
 
 
 // Main
-    
 await clearWorkspace(layout.workspace);
-// await switchToWorkspace(layout.workspace);
 await traverseTreeMove(layout.windows);
 await traverseTreeReposition(layout.windows);
 await switchToWorkspace(layout.workspace);
