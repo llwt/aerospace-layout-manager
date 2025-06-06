@@ -1,11 +1,12 @@
 {
-  "name": "flightcontrol",
+  "name": "aerospace-layout-manager",
   "module": "index.ts",
   "type": "module",
   "private": true,
   "scripts": {
     "dev": "bun run --watch index.ts --layout dev --config-file ./layouts.json",
-    "build": "bun build ./index.ts --compile --outfile build/flightcontrol"
+    "build": "bun build ./index.ts --compile --outfile build/flightcontrol",
+    "build:mac": "bun build ./index.ts --compile --target=bun-darwin-arm64 --outfile build/flightcontrol"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
