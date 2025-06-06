@@ -55,9 +55,9 @@ Field reference:
 
 ## ▶️  Usage
 
-Add a layouts.json file to `~/.config/aerospace/layouts.json`
-Make index.ts executable and add it to your bin path
-Or (optionally) build a [single file executable](https://bun.sh/docs/bundler/executables) before adding it
+* Add a layouts.json file to `~/.config/aerospace/layouts.json`
+* Make index.ts executable and add it to your bin path
+* Or (optionally) build a [single file executable](https://bun.sh/docs/bundler/executables) before adding it
 
 ### List available layouts
 
