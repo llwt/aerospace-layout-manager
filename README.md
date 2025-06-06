@@ -55,36 +55,34 @@ Field reference:
 
 ## ▶️  Usage
 
-Install packages (there is only `typescript` for types, but we keep lock-files tidy):
-
-```bash
-bun install
-```
+Add a layouts.json file to `~/.config/aerospace/layouts.json`
+Make index.ts executable and add it to your bin path
+Or (optionally) build a [single file executable](https://bun.sh/docs/bundler/executables) before adding it
 
 ### List available layouts
 
 ```bash
-bun run index.ts --listLayouts
-# or: bun run index.ts -L
+aerospace-layout-manager --listLayouts
+# or: aerospace-layout-manager -L
 ```
 
 ### Apply a layout
 
 ```bash
 # by long option
-bun run index.ts --layout work
+aerospace-layout-manager --layout work
 
 # by short option
-bun run index.ts -l work
+aerospace-layout-manager -l work
 
 # or simply pass the name as a positional argument
-bun run index.ts work
+aerospace-layout-manager work
 ```
 
 ### Use an alternate config file
 
 ```bash
-bun run index.ts --configFile ~/my-layouts/presentation.json -l keynote
+aerospace-layout-manager --configFile ~/my-layouts/presentation.json -l keynote
 ```
 
 ---
