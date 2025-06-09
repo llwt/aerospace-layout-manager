@@ -36,7 +36,7 @@ const args = parseArgs({
     args: process.argv.slice(2),
     options: {
         layout: { type: "string", short: "l" },
-    configFile: { type: "string", short: "c", default: "~/.config/aerospace/layouts.json" },
+        configFile: { type: "string", short: "c", default: "~/.config/aerospace/layouts.json" },
         listLayouts: { type: "boolean", short: "L" },
     },
     strict: true,

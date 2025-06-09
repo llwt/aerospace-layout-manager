@@ -12,8 +12,20 @@ You describe a layout once (in JSON), then run the script whenever you need that
 * Launches apps if they are not already running.
 * Moves / focuses windows into the requested **workspace**.
 * Supports nested horizontal & vertical groups for sophisticated tiling.
-* Falls back to a configurable “stash” workspace so your primary workspace starts clean.
+* Falls back to a configurable "stash" workspace so your primary workspace starts clean.
 * One-line listing of all available layouts.
+
+---
+
+## 🚀 Installation
+
+You can install `aerospace-layout-manager` with a single command:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/CarterMcAlister/aerospace-layout-manager/main/install.sh | bash
+```
+
+This script will automatically detect your operating system and architecture, download the correct release binary, and place it in `/usr/local/bin`.
 
 ## 🔧 Configuration (`layouts.json`)
 
@@ -45,7 +57,7 @@ Field reference:
 * **stashWorkspace** – workspace whose windows will be used as temporary storage.
 * **layouts** → each key is a layout name you can invoke.
   * **workspace** – target workspace (string or number) for the layout.
-  * **layout** – one of Aerospace’s layout names (`tiles`, `h_tiles`, `v_tiles`, `floating`, …).
+  * **layout** – one of Aerospace's layout names (`tiles`, `h_tiles`, `v_tiles`, `floating`, …).
   * **orientation** – default orientation for nested groups (`horizontal` or `vertical`).
   * **windows** – recursive array of:
     * `{ "bundleId": "…"}`
@@ -55,9 +67,9 @@ Field reference:
 
 ## ▶️  Usage
 
-* Add a layouts.json file to `~/.config/aerospace/layouts.json`
-* Make index.ts executable and add it to your bin path
-* Or (optionally) build a [single file executable](https://bun.sh/docs/bundler/executables) before adding it
+Once installed, you can use the `aerospace-layout-manager` command.
+
+First, add a layouts file to `~/.config/aerospace/layouts.json`. See the [Configuration](#-configuration-layoutsjson) section for details.
 
 ### List available layouts
 
@@ -90,7 +102,7 @@ aerospace-layout-manager --configFile ~/my-layouts/presentation.json -l keynote
 ## ⚙️  How it works (high level)
 
 1. **Clear** – moves every window currently in the target workspace to `stashWorkspace`.
-2. **Move** – ensures each app is running, then moves its first window into the layout’s workspace, depth-first.
+2. **Move** – ensures each app is running, then moves its first window into the layout's workspace, depth-first.
 3. **Reposition** – flattens the workspace, sets the requested layout type, and joins / splits panes according to the JSON hierarchy.
 4. **Focus** – switches to the fully-arranged workspace.
 
