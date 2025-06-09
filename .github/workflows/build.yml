@@ -2,8 +2,8 @@ name: Build and Release
 
 on:
   push:
-    branches:
-      - main
+    tags:
+      - "v*.*.*"
 
 jobs:
   build:
@@ -15,6 +15,13 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+
+      - name: Check version
+        run: |
+          if [ "v$(jq -r .version package.json)" != "${{ github.ref_name }}" ]; then
+            echo "Tag (${{ github.ref_name }}) does not match version in package.json (v$(jq -r .version package.json))"
+            exit 1
+          fi
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -33,6 +40,5 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: build/aerospace-layout-manager-*
-          tag_name: ${{ github.run_number }}
-          body: "Release ${{ github.run_number }}"
-          prerelease: true
+          tag_name: ${{ github.ref_name }}
+          body: "Release ${{ github.ref_name }}"
