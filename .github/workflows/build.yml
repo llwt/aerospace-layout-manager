@@ -1,0 +1,38 @@
+name: Build and Release
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Build and Release
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # needed to write releases
+      packages: write # needed for packages
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Build
+        run: |
+          bun run build:linux
+          bun run build:mac
+          bun run build:mac-intel
+          bun run build:windows
+
+      - name: Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: build/aerospace-layout-manager-*
+          tag_name: ${{ github.run_number }}
+          body: "Release ${{ github.run_number }}"
+          prerelease: true

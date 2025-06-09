@@ -1,12 +1,16 @@
 {
   "name": "aerospace-layout-manager",
+  "version": "0.0.1",
   "module": "index.ts",
   "type": "module",
   "private": true,
   "scripts": {
     "dev": "bun run --watch index.ts --layout dev --config-file ./layouts.json",
-    "build": "bun build ./index.ts --compile --outfile build/aerospace-layout-manager",
-    "build:mac": "bun build ./index.ts --compile --target=bun-darwin-arm64 --outfile build/aerospace-layout-manager"
+    "build": "bun build --compile ./index.ts --minify --sourcemap --outfile build/aerospace-layout-manager",
+    "build:linux": "bun build --compile ./index.ts --minify --sourcemap --target=bun-linux-x64 --outfile build/aerospace-layout-manager-linux-x64",
+    "build:mac": "bun build --compile ./index.ts --minify --sourcemap --target=bun-darwin-arm64 --outfile build/aerospace-layout-manager-darwin-arm64",
+    "build:mac-intel": "bun build --compile ./index.ts --minify --sourcemap --target=bun-darwin-x64 --outfile build/aerospace-layout-manager-darwin-x64",
+    "build:windows": "bun build --compile ./index.ts --minify --sourcemap --target=bun-windows-x64 --outfile build/aerospace-layout-manager-windows-x64.exe"
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
