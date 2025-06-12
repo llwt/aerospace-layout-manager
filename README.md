@@ -14,6 +14,7 @@ You describe a layout once (in JSON), then run the script whenever you need that
 * Supports nested horizontal & vertical groups for sophisticated tiling.
 * Falls back to a configurable "stash" workspace so your primary workspace starts clean.
 * One-line listing of all available layouts.
+* Optional **fractional sizing** for windows and groups via a simple `size` field (e.g. `"size": "2/3"`).
 
 ---
 
@@ -42,8 +43,8 @@ This script will automatically detect your operating system and architecture, do
         {
           "orientation": "horizontal",
           "windows": [
-            { "bundleId": "com.jetbrains.WebStorm" },
-            { "bundleId": "com.apple.Terminal" }
+            { "bundleId": "com.jetbrains.WebStorm", "size": "2/3" },
+            { "bundleId": "com.apple.Terminal", "size": "1/3" }
           ]
         }
       ]
@@ -60,8 +61,9 @@ Field reference:
   * **layout** – one of Aerospace's layout names (`tiles`, `h_tiles`, `v_tiles`, `floating`, …).
   * **orientation** – default orientation for nested groups (`horizontal` or `vertical`).
   * **windows** – recursive array of:
-    * `{ "bundleId": "…"}`
-    * `{ "orientation": "horizontal" \| "vertical", "windows": [ … ] }`
+    * `{ "bundleId": "…", "size": "n/d" }` – an application window, optionally sized as a fraction.
+    * `{ "orientation": "horizontal" | "vertical", "size": "n/d", "windows": [ … ] }` – a nested group, optionally sized as a fraction.
+  * **size** – *(optional)* fractional width/height (`"numerator/denominator"`). In a horizontal context (`orientation: "horizontal"`) the fraction controls width; in a vertical context it controls height.
 
 ---
 
@@ -104,16 +106,7 @@ aerospace-layout-manager --configFile ~/my-layouts/presentation.json -l keynote
 1. **Clear** – moves every window currently in the target workspace to `stashWorkspace`.
 2. **Move** – ensures each app is running, then moves its first window into the layout's workspace, depth-first.
 3. **Reposition** – flattens the workspace, sets the requested layout type, and joins / splits panes according to the JSON hierarchy.
-4. **Focus** – switches to the fully-arranged workspace.
+4. **Resize** - sets the windows to the fractional sizes, if specified
+5. **Focus** – switches to the fully-arranged workspace.
 
 The logic lives in [`index.ts`](./index.ts) and is intentionally kept readable if you need to tweak timings or behaviour.
-
----
-
-## 🛠  Extending
-
-* Add more layouts in `layouts.json`.
-* Nest groups arbitrarily deep (`windows` can contain further groups).
-* New window-management tricks? Wrap additional Aerospace CLI calls in `index.ts`.
-
-PRs and ideas are welcome!

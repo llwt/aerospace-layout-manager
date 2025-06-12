@@ -1,4 +1,5 @@
 {
+    "$schema": "https://raw.githubusercontent.com/CarterMcAlister/aerospace-layout-manager/main/layoutConfig.schema.json",
     "stashWorkspace": "S",
     "layouts": {
         "dev": {
@@ -28,11 +29,18 @@
             "orientation": "horizontal",
             "windows": [
                 {
-                    "bundleId": "company.thebrowser.Browser"
+                    "bundleId": "md.obsidian",
+                    "size": "1/4"
                 },
                 {
-                    "bundleId": "md.obsidian"
+                    "bundleId": "company.thebrowser.Browser",
+                    "size": "1/2"
+                },
+                {
+                    "bundleId": "com.cron.electron",
+                    "size": "1/4"
                 }
+                
             ]
         },
         "utils": {

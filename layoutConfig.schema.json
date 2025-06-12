@@ -1,0 +1,119 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://example.com/layoutConfig.schema.json",
+  "title": "LayoutConfig",
+  "type": "object",
+  "required": ["stashWorkspace", "layouts"],
+  "additionalProperties": false,
+  "properties": {
+    "stashWorkspace": {
+      "type": "string",
+      "description": "Workspace name used to stash windows while rearranging."
+    },
+    "layouts": {
+      "type": "object",
+      "description": "Mapping of layout names to their definitions.",
+      "additionalProperties": { "$ref": "#/definitions/Layout" }
+    }
+  },
+  "definitions": {
+    "WorkspaceLayout": {
+      "type": "string",
+      "enum": [
+        "h_tiles",
+        "v_tiles",
+        "h_accordion",
+        "v_accordion",
+        "tiles",
+        "accordion",
+        "horizontal",
+        "vertical",
+        "tiling",
+        "floating"
+      ]
+    },
+    "Orientation": {
+      "type": "string",
+      "enum": ["horizontal", "vertical"]
+    },
+    "Size": {
+      "type": "string",
+      "pattern": "^[0-9]+\\/[0-9]+$",
+      "description": "Fractional size expressed as 'numerator/denominator', e.g. '1/2'."
+    },
+
+    "LayoutWindow": {
+      "type": "object",
+      "required": ["bundleId"],
+      "additionalProperties": false,
+      "properties": {
+        "bundleId": { "type": "string" }
+      }
+    },
+
+    "LayoutWindowWithSize": {
+      "allOf": [
+        { "$ref": "#/definitions/LayoutWindow" },
+        {
+          "type": "object",
+          "required": ["size"],
+          "additionalProperties": false,
+          "properties": {
+            "size": { "$ref": "#/definitions/Size" }
+          }
+        }
+      ]
+    },
+
+    "LayoutGroup": {
+      "type": "object",
+      "required": ["orientation", "windows"],
+      "additionalProperties": false,
+      "properties": {
+        "orientation": { "$ref": "#/definitions/Orientation" },
+        "windows": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/LayoutWindow" }
+        }
+      }
+    },
+
+    "LayoutGroupWithSize": {
+      "allOf": [
+        { "$ref": "#/definitions/LayoutGroup" },
+        {
+          "type": "object",
+          "required": ["size"],
+          "additionalProperties": false,
+          "properties": {
+            "size": { "$ref": "#/definitions/Size" }
+          }
+        }
+      ]
+    },
+
+    "LayoutItem": {
+      "oneOf": [
+        { "$ref": "#/definitions/LayoutWindow" },
+        { "$ref": "#/definitions/LayoutGroup" },
+        { "$ref": "#/definitions/LayoutWindowWithSize" },
+        { "$ref": "#/definitions/LayoutGroupWithSize" }
+      ]
+    },
+
+    "Layout": {
+      "type": "object",
+      "required": ["workspace", "layout", "orientation", "windows"],
+      "additionalProperties": false,
+      "properties": {
+        "workspace": { "type": "string" },
+        "layout": { "$ref": "#/definitions/WorkspaceLayout" },
+        "orientation": { "$ref": "#/definitions/Orientation" },
+        "windows": {
+          "type": "array",
+          "items": { "$ref": "#/definitions/LayoutItem" }
+        }
+      }
+    }
+  }
+} 

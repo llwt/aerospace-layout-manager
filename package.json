@@ -1,23 +1,23 @@
 {
-  "name": "aerospace-layout-manager",
-  "version": "0.0.1",
-  "module": "index.ts",
-  "type": "module",
-  "private": true,
-  "scripts": {
-    "dev": "bun run --watch index.ts --layout dev --config-file ./layouts.json",
-    "build": "bun build --compile ./index.ts --minify --sourcemap --outfile build/aerospace-layout-manager",
-    "build:mac": "bun build --compile ./index.ts --minify --sourcemap --target=bun-darwin-arm64 --outfile build/aerospace-layout-manager-darwin-arm64",
-    "build:mac-intel": "bun build --compile ./index.ts --minify --sourcemap --target=bun-darwin-x64 --outfile build/aerospace-layout-manager-darwin-x64",
-  },
-  "devDependencies": {
-    "@biomejs/biome": "1.9.4",
-    "@types/bun": "latest"
-  },
-  "peerDependencies": {
-    "typescript": "^5"
-  },
-  "trustedDependencies": [
-    "@biomejs/biome"
-  ]
+	"name": "aerospace-layout-manager",
+	"version": "0.0.2",
+	"module": "index.ts",
+	"type": "module",
+	"private": true,
+	"scripts": {
+		"dev": "bun run --watch index.ts --layout dev --configFile ./layouts.json",
+		"build": "bun build --compile ./index.ts --minify --sourcemap --outfile build/aerospace-layout-manager",
+		"build:mac": "bun build --compile ./index.ts --minify --sourcemap --target=bun-darwin-arm64 --outfile build/aerospace-layout-manager-darwin-arm64",
+		"build:mac-intel": "bun build --compile ./index.ts --minify --sourcemap --target=bun-darwin-x64 --outfile build/aerospace-layout-manager-darwin-x64",
+		"format": "biome format --write",
+		"lint": "biome lint"
+	},
+	"devDependencies": {
+		"@biomejs/biome": "1.9.4",
+		"@types/bun": "latest"
+	},
+	"peerDependencies": {
+		"typescript": "^5"
+	},
+	"trustedDependencies": ["@biomejs/biome"]
 }
