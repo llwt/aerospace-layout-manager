@@ -86,7 +86,7 @@ main() {
     if [ ! -f "$LAYOUTS_FILE" ]; then
         echo "Creating layout file at $LAYOUTS_FILE"
         mkdir -p "$CONFIG_DIR"
-        echo "{ \"$schema\": \"https://raw.githubusercontent.com/CarterMcAlister/aerospace-layout-manager/main/layoutConfig.schema.json\" }" > "$LAYOUTS_FILE"
+        echo "{ \"\$schema\": \"https://raw.githubusercontent.com/CarterMcAlister/aerospace-layout-manager/main/layoutConfig.schema.json\" }" > "$LAYOUTS_FILE"
     fi
 
     echo "Installation successful!"
