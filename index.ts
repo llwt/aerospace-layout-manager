@@ -274,9 +274,10 @@ function selectDisplay(layout: any, displays: DisplayInfo[]): DisplayInfo {
   }
 
   if (!selectedDisplay) {
-    throw new Error(
+    console.log(
       `Display not found: ${layout.display}. Please specify a valid display name, alias, or ID. Defaulting to the main display.`
     );
+    selectedDisplay = getDisplayByAlias(DisplayAlias.Main, displays);
   }
 
   console.log(
