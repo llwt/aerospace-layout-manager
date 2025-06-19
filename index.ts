@@ -205,13 +205,13 @@ function getDisplayByAlias(
 ): DisplayInfo | undefined {
   switch (alias) {
     case DisplayAlias.Main:
-      return displays.find((d) => d.isMain);
+      return getMainDisplay(displays);
     case DisplayAlias.Secondary:
       if (displays.length < 2) {
         console.log(
           "Alias 'secondary' is used, but only one display found. Defaulting to the main display."
         );
-        return displays.find((d) => d.isMain);
+        return getMainDisplay(displays);
       }
       if (displays.length > 2) {
         throw new Error(
@@ -225,7 +225,7 @@ function getDisplayByAlias(
         console.log(
           "Alias 'external' is used, but no external displays found. Defaulting to the main display."
         );
-        return displays.find((d) => d.isMain);
+        return getMainDisplay(displays);
       }
       if (externalDisplays.length > 1) {
         throw new Error(
@@ -250,6 +250,10 @@ function getDisplayById(
   displays: DisplayInfo[]
 ): DisplayInfo | undefined {
   return displays.find((d) => d.id === id);
+}
+
+function getMainDisplay(displays: DisplayInfo[]): DisplayInfo | undefined {
+  return displays.find((d) => d.isMain);
 }
 
 function selectDisplay(layout: any, displays: DisplayInfo[]): DisplayInfo {
