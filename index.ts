@@ -134,7 +134,6 @@ const displays = getDisplays();
 if (!displays) {
   throw new Error(`No displays found. Please, debug with ${SPDisplayCommand}`);
 }
-console.log(displays);
 const selectedDisplay = selectDisplay(layout, displays);
 if (!selectedDisplay) {
   throw new Error(
@@ -204,7 +203,6 @@ function getDisplayByAlias(
   alias: DisplayAlias,
   displays: DisplayInfo[]
 ): DisplayInfo | undefined {
-  console.log("Getting display by alias:", alias, alias in DisplayAlias);
   switch (alias) {
     case DisplayAlias.Main:
       return displays.find((d) => d.isMain);
