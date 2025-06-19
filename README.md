@@ -15,6 +15,7 @@ You describe a layout once (in JSON), then run the script whenever you need that
 * Falls back to a configurable "stash" workspace so your primary workspace starts clean.
 * One-line listing of all available layouts.
 * Optional **fractional sizing** for windows and groups via a simple `size` field (e.g. `"size": "2/3"`).
+* Supports **multi-display setups** with the `display` field to correctly calculate window sizes, in a per-layout basis.
 
 ---
 
@@ -64,6 +65,8 @@ Field reference:
     * `{ "bundleId": "…", "size": "n/d" }` – an application window, optionally sized as a fraction.
     * `{ "orientation": "horizontal" | "vertical", "size": "n/d", "windows": [ … ] }` – a nested group, optionally sized as a fraction.
   * **size** – *(optional)* fractional width/height (`"numerator/denominator"`). In a horizontal context (`orientation: "horizontal"`) the fraction controls width; in a vertical context it controls height.
+  * **display** – *(optional)* display *name* or *ID* (as shown by `system_profiler SPDisplaysDataType`), or a valid alias (`main`, `secondary`, `external`, `internal`).
+    * In multi-display setups, you can specify the target display for a layout in order to correctly calculate window sizes (if specified with `size`). By default, the layout will be applied to the primary display.
 
 ---
 
