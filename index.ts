@@ -46,6 +46,7 @@ type Layout = {
   layout: WorkspaceLayout;
   orientation: Orientation;
   windows: LayoutItem[];
+  display?: string | number;
 };
 
 type LayoutConfig = {
@@ -134,7 +135,9 @@ const displays = getDisplays();
 if (!displays) {
   throw new Error(`No displays found. Please, debug with ${SPDisplayCommand}`);
 }
-const selectedDisplay = selectDisplay(layout, displays);
+const selectedDisplay = layout.display
+  ? selectDisplay(layout, displays)
+  : getDisplayByAlias(DisplayAlias.Main, displays);
 if (!selectedDisplay) {
   throw new Error(
     `A display could not be selected for layout "${layoutName}". Please check your configuration.`
