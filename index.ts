@@ -2,7 +2,6 @@
 
 import { $ } from "bun";
 import { parseArgs } from "node:util";
-import { execSync } from "node:child_process";
 
 // Types
 type WorkspaceLayout =
@@ -46,7 +45,7 @@ type Layout = {
 	layout: WorkspaceLayout;
 	orientation: Orientation;
 	windows: LayoutItem[];
-	display?: string | number;
+	display?: string | number | DisplayAlias;
 };
 
 type LayoutConfig = {
@@ -80,6 +79,28 @@ enum DisplayAlias {
 	Internal = "internal",
 }
 
+type SPDisplaysDataType = {
+	_name: string;
+	spdisplays_ndrvs: {
+		_name: string;
+		"_spdisplays_display-product-id": string;
+		"_spdisplays_display-serial-number": string;
+		"_spdisplays_display-vendor-id": string;
+		"_spdisplays_display-week": string;
+		"_spdisplays_display-year": string;
+		_spdisplays_displayID: string;
+		_spdisplays_pixels: string; // Format: "width x height"
+		_spdisplays_resolution: string; // Format: "width x height @ Hz"
+		spdisplays_main: "spdisplays_yes" | "spdisplays_no";
+		spdisplays_mirror: "spdisplays_off" | "spdisplays_on";
+		spdisplays_online: "spdisplays_yes" | "spdisplays_no";
+		spdisplays_pixelresolution: string; // Format: "width x height"
+		spdisplays_resolution: string; // Format: "width x height @ Hz"
+		spdisplays_rotation: "spdisplays_supported" | "spdisplays_not_supported";
+		spdisplays_connection_type?: "spdisplays_internal" | string; // Optional as it may not be present for external displays
+	}[];
+};
+
 // Setup
 
 const args = parseArgs({
@@ -93,6 +114,7 @@ const args = parseArgs({
 		},
 		listLayouts: { type: "boolean", short: "L" },
 		help: { type: "boolean", short: "h" },
+		listDisplays: { type: "boolean", short: "d" },
 	},
 	strict: true,
 	allowPositionals: true,
@@ -109,7 +131,7 @@ if (args.values.listLayouts) {
 
 function printHelp() {
 	console.log(
-		`\nAerospace Layout Manager\n\nUsage:\n  aerospace-layout-manager [options] <layout-name>\n\nOptions:\n  -l, --layout <layout-name>   Specify the layout name (can also be provided as the first positional argument)\n  -c, --configFile <path>      Path to the layout configuration file (default: ~/.config/aerospace/layouts.json)\n  -L, --listLayouts            List available layout names from the configuration file\n  -h, --help                   Show this help message and exit\n\nExamples:\n  # Apply the 'work' layout defined in the config\n  aerospace-layout-manager work\n\n  # Same as above using the explicit flag\n  aerospace-layout-manager --layout work\n\n  # List all available layouts\n  aerospace-layout-manager --listLayouts\n`,
+		`\nAerospace Layout Manager\n\nUsage:\n  aerospace-layout-manager [options] <layout-name>\n\nOptions:\n  -l, --layout <layout-name>   Specify the layout name (can also be provided as the first positional argument)\n  -c, --configFile <path>      Path to the layout configuration file (default: ~/.config/aerospace/layouts.json)\n  -L, --listLayouts            List available layout names from the configuration file\n  -d, --listDisplays           List available display names\n  -h, --help                   Show this help message and exit\n\nExamples:\n  # Apply the 'work' layout defined in the config\n  aerospace-layout-manager work\n\n  # Same as above using the explicit flag\n  aerospace-layout-manager --layout work\n\n  # List all available layouts\n  aerospace-layout-manager --listLayouts\n\n  # List all available displays\n  aerospace-layout-manager --listDisplays\n`,
 	);
 }
 
@@ -119,25 +141,32 @@ if (args.values.help || layoutName === "help") {
 	process.exit(0);
 }
 
+if (args.values.listDisplays) {
+	const displays = await getDisplays();
+	console.log(displays.map((d) => d.name).join("\n"));
+	process.exit(0);
+}
+
 if (!layoutName) {
 	printHelp();
 	process.exit(0);
 }
 
-const layout = layoutConfig.layouts[layoutName];
+const layout = layoutConfig.layouts[layoutName] as Layout;
 const stashWorkspace = layoutConfig.stashWorkspace ?? "S";
 
 if (!layout) {
 	throw new Error("Layout not found");
 }
 
-const displays = getDisplays();
+const displays = await getDisplays();
 if (!displays) {
 	throw new Error(`No displays found. Please, debug with ${SPDisplayCommand}`);
 }
 const selectedDisplay = layout.display
 	? selectDisplay(layout, displays)
 	: getDisplayByAlias(DisplayAlias.Main, displays);
+
 if (!selectedDisplay) {
 	throw new Error(
 		`A display could not be selected for layout "${layoutName}". Please check your configuration.`,
@@ -177,23 +206,23 @@ async function focusWindow(windowId: string) {
 	await $`aerospace focus --window-id ${windowId}`.nothrow();
 }
 
-function getDisplays(): DisplayInfo[] {
-	const json = execSync(SPDisplayCommand, { encoding: "utf8" });
-	const data = JSON.parse(json);
-	return data.SPDisplaysDataType.flatMap((gpu: any) =>
-		gpu.spdisplays_ndrvs.map((d: any) => ({
+async function getDisplays(): Promise<DisplayInfo[]> {
+	const data = await $`system_profiler SPDisplaysDataType -json`.json();
+
+	return data.SPDisplaysDataType.flatMap((gpu: SPDisplaysDataType) =>
+		gpu.spdisplays_ndrvs?.map((d) => ({
 			name: d._name,
-			id: parseInt(d._spdisplays_displayID) || undefined,
-			width: parseInt(
+			id: Number.parseInt(d._spdisplays_displayID) || undefined,
+			width: Number.parseInt(
 				(d._spdisplays_resolution || d.spdisplays_resolution || "").split(
 					" x ",
-				)[0],
+				)[0] || "0",
 				10,
 			),
-			height: parseInt(
+			height: Number.parseInt(
 				(d._spdisplays_resolution || d.spdisplays_resolution || "").split(
 					" x ",
-				)[1],
+				)[1] || "0",
 				10,
 			),
 			isMain: d.spdisplays_main === SPDisplaysValues.Yes,
@@ -222,7 +251,7 @@ function getDisplayByAlias(
 				);
 			}
 			return displays.find((d) => !d.isMain);
-		case DisplayAlias.External:
+		case DisplayAlias.External: {
 			const externalDisplays = displays.filter((d) => !d.isInternal);
 			if (externalDisplays.length === 0) {
 				console.log(
@@ -236,6 +265,7 @@ function getDisplayByAlias(
 				);
 			}
 			return externalDisplays[0];
+		}
 		case DisplayAlias.Internal:
 			return displays.find((d) => d.isInternal);
 	}
@@ -259,21 +289,24 @@ function getMainDisplay(displays: DisplayInfo[]): DisplayInfo | undefined {
 	return displays.find((d) => d.isMain);
 }
 
-function selectDisplay(layout: any, displays: DisplayInfo[]): DisplayInfo {
+function selectDisplay(layout: Layout, displays: DisplayInfo[]): DisplayInfo {
 	let selectedDisplay: DisplayInfo | undefined;
 	if (layout.display) {
-		if (typeof layout.display === "string" && isNaN(Number(layout.display))) {
+		if (
+			typeof layout.display === "string" &&
+			Number.isNaN(Number(layout.display))
+		) {
 			const isAlias = Object.values(DisplayAlias).includes(
 				layout.display as DisplayAlias,
 			);
 			if (isAlias) {
-				selectedDisplay = getDisplayByAlias(layout.display, displays);
+				selectedDisplay = getDisplayByAlias(layout.display as DisplayAlias, displays);
 			} else {
 				selectedDisplay = getDisplayByName(layout.display, displays);
 			}
 		} else if (
 			typeof layout.display === "number" ||
-			!isNaN(Number(layout.display))
+			!Number.isNaN(Number(layout.display))
 		) {
 			const displayId = Number(layout.display);
 			selectedDisplay = getDisplayById(displayId, displays);
@@ -284,7 +317,10 @@ function selectDisplay(layout: any, displays: DisplayInfo[]): DisplayInfo {
 		console.log(
 			`Display not found: ${layout.display}. Please specify a valid display name, alias, or ID. Defaulting to the main display.`,
 		);
-		selectedDisplay = getDisplayByAlias(DisplayAlias.Main, displays);
+		selectedDisplay = getDisplayByAlias(
+			DisplayAlias.Main,
+			displays,
+		) as DisplayInfo;
 	}
 
 	console.log(
