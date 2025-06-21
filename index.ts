@@ -300,7 +300,10 @@ function selectDisplay(layout: Layout, displays: DisplayInfo[]): DisplayInfo {
 				layout.display as DisplayAlias,
 			);
 			if (isAlias) {
-				selectedDisplay = getDisplayByAlias(layout.display as DisplayAlias, displays);
+				selectedDisplay = getDisplayByAlias(
+					layout.display as DisplayAlias,
+					displays,
+				);
 			} else {
 				selectedDisplay = getDisplayByName(layout.display, displays);
 			}
