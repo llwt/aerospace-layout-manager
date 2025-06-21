@@ -45,11 +45,60 @@ type Layout = {
 	layout: WorkspaceLayout;
 	orientation: Orientation;
 	windows: LayoutItem[];
+	display?: string | number | DisplayAlias;
 };
 
 type LayoutConfig = {
 	stashWorkspace: string;
 	layouts: Record<string, Layout>;
+};
+
+type DisplayInfo = {
+	id?: number;
+	name: string;
+	width: number;
+	height: number;
+	isMain: boolean;
+	isInternal?: boolean;
+};
+
+// macOS system_profiler SPDisplaysDataType reporter's values
+enum SPDisplaysValues {
+	Yes = "spdisplays_yes",
+	No = "spdisplays_no",
+	Supported = "spdisplays_supported",
+	Internal = "spdisplays_internal",
+}
+
+const SPDisplayCommand = "system_profiler SPDisplaysDataType -json";
+
+enum DisplayAlias {
+	Main = "main",
+	Secondary = "secondary",
+	External = "external",
+	Internal = "internal",
+}
+
+type SPDisplaysDataType = {
+	_name: string;
+	spdisplays_ndrvs: {
+		_name: string;
+		"_spdisplays_display-product-id": string;
+		"_spdisplays_display-serial-number": string;
+		"_spdisplays_display-vendor-id": string;
+		"_spdisplays_display-week": string;
+		"_spdisplays_display-year": string;
+		_spdisplays_displayID: string;
+		_spdisplays_pixels: string; // Format: "width x height"
+		_spdisplays_resolution: string; // Format: "width x height @ Hz"
+		spdisplays_main: "spdisplays_yes" | "spdisplays_no";
+		spdisplays_mirror: "spdisplays_off" | "spdisplays_on";
+		spdisplays_online: "spdisplays_yes" | "spdisplays_no";
+		spdisplays_pixelresolution: string; // Format: "width x height"
+		spdisplays_resolution: string; // Format: "width x height @ Hz"
+		spdisplays_rotation: "spdisplays_supported" | "spdisplays_not_supported";
+		spdisplays_connection_type?: "spdisplays_internal" | string; // Optional as it may not be present for external displays
+	}[];
 };
 
 // Setup
@@ -65,6 +114,7 @@ const args = parseArgs({
 		},
 		listLayouts: { type: "boolean", short: "L" },
 		help: { type: "boolean", short: "h" },
+		listDisplays: { type: "boolean", short: "d" },
 	},
 	strict: true,
 	allowPositionals: true,
@@ -81,7 +131,7 @@ if (args.values.listLayouts) {
 
 function printHelp() {
 	console.log(
-		`\nAerospace Layout Manager\n\nUsage:\n  aerospace-layout-manager [options] <layout-name>\n\nOptions:\n  -l, --layout <layout-name>   Specify the layout name (can also be provided as the first positional argument)\n  -c, --configFile <path>      Path to the layout configuration file (default: ~/.config/aerospace/layouts.json)\n  -L, --listLayouts            List available layout names from the configuration file\n  -h, --help                   Show this help message and exit\n\nExamples:\n  # Apply the 'work' layout defined in the config\n  aerospace-layout-manager work\n\n  # Same as above using the explicit flag\n  aerospace-layout-manager --layout work\n\n  # List all available layouts\n  aerospace-layout-manager --listLayouts\n`,
+		`\nAerospace Layout Manager\n\nUsage:\n  aerospace-layout-manager [options] <layout-name>\n\nOptions:\n  -l, --layout <layout-name>   Specify the layout name (can also be provided as the first positional argument)\n  -c, --configFile <path>      Path to the layout configuration file (default: ~/.config/aerospace/layouts.json)\n  -L, --listLayouts            List available layout names from the configuration file\n  -d, --listDisplays           List available display names\n  -h, --help                   Show this help message and exit\n\nExamples:\n  # Apply the 'work' layout defined in the config\n  aerospace-layout-manager work\n\n  # Same as above using the explicit flag\n  aerospace-layout-manager --layout work\n\n  # List all available layouts\n  aerospace-layout-manager --listLayouts\n\n  # List all available displays\n  aerospace-layout-manager --listDisplays\n`,
 	);
 }
 
@@ -91,16 +141,36 @@ if (args.values.help || layoutName === "help") {
 	process.exit(0);
 }
 
+if (args.values.listDisplays) {
+	const displays = await getDisplays();
+	console.log(displays.map((d) => d.name).join("\n"));
+	process.exit(0);
+}
+
 if (!layoutName) {
 	printHelp();
 	process.exit(0);
 }
 
-const layout = layoutConfig.layouts[layoutName];
+const layout = layoutConfig.layouts[layoutName] as Layout;
 const stashWorkspace = layoutConfig.stashWorkspace ?? "S";
 
 if (!layout) {
 	throw new Error("Layout not found");
+}
+
+const displays = await getDisplays();
+if (!displays) {
+	throw new Error(`No displays found. Please, debug with ${SPDisplayCommand}`);
+}
+const selectedDisplay = layout.display
+	? selectDisplay(layout, displays)
+	: getDisplayByAlias(DisplayAlias.Main, displays);
+
+if (!selectedDisplay) {
+	throw new Error(
+		`A display could not be selected for layout "${layoutName}". Please check your configuration.`,
+	);
 }
 
 // Helpers
@@ -136,47 +206,147 @@ async function focusWindow(windowId: string) {
 	await $`aerospace focus --window-id ${windowId}`.nothrow();
 }
 
-/**
- * Return the width of the current (primary) monitor in pixels.
- * Uses AppleScript because Aerospace does not expose this information.
- */
-async function getMonitorWidth(): Promise<number | null> {
-	try {
-		/*
-      AppleScript:  bounds of window of desktop -> {x1, y1, x2, y2}
-      Width  = x2 - x1
-    */
-		const output =
-			await $`osascript -e 'tell application "Finder" to get bounds of window of desktop'`.text();
-		const parts = output
-			.split(/,\s*/) // split into ["0", "0", "1440", "900"]
-			.map((v) => Number.parseInt(v.trim(), 10))
-			.filter((n) => !Number.isNaN(n));
+async function getDisplays(): Promise<DisplayInfo[]> {
+	const data = await $`system_profiler SPDisplaysDataType -json`.json();
 
-		if (parts.length === 4) {
-			const [x1, , x2] = parts;
-			return x2 - x1;
+	return data.SPDisplaysDataType.flatMap((gpu: SPDisplaysDataType) =>
+		gpu.spdisplays_ndrvs?.map((d) => ({
+			name: d._name,
+			id: Number.parseInt(d._spdisplays_displayID) || undefined,
+			width: Number.parseInt(
+				(d._spdisplays_resolution || d.spdisplays_resolution || "").split(
+					" x ",
+				)[0] || "0",
+				10,
+			),
+			height: Number.parseInt(
+				(d._spdisplays_resolution || d.spdisplays_resolution || "").split(
+					" x ",
+				)[1] || "0",
+				10,
+			),
+			isMain: d.spdisplays_main === SPDisplaysValues.Yes,
+			isInternal: d.spdisplays_connection_type === SPDisplaysValues.Internal,
+		})),
+	);
+}
+
+function getDisplayByAlias(
+	alias: DisplayAlias,
+	displays: DisplayInfo[],
+): DisplayInfo | undefined {
+	switch (alias) {
+		case DisplayAlias.Main:
+			return getMainDisplay(displays);
+		case DisplayAlias.Secondary:
+			if (displays.length < 2) {
+				console.log(
+					"Alias 'secondary' is used, but only one display found. Defaulting to the main display.",
+				);
+				return getMainDisplay(displays);
+			}
+			if (displays.length > 2) {
+				throw new Error(
+					"Alias 'secondary' is used, but multiple secondary displays are found. Please specify an exact display name or use a different alias.",
+				);
+			}
+			return displays.find((d) => !d.isMain);
+		case DisplayAlias.External: {
+			const externalDisplays = displays.filter((d) => !d.isInternal);
+			if (externalDisplays.length === 0) {
+				console.log(
+					"Alias 'external' is used, but no external displays found. Defaulting to the main display.",
+				);
+				return getMainDisplay(displays);
+			}
+			if (externalDisplays.length > 1) {
+				throw new Error(
+					"Multiple external displays found. Please specify an exact display name or use a different alias.",
+				);
+			}
+			return externalDisplays[0];
 		}
-		return null;
-	} catch (error) {
-		console.error("Unable to determine monitor width", error);
-		return null;
+		case DisplayAlias.Internal:
+			return displays.find((d) => d.isInternal);
 	}
 }
 
-async function getMonitorHeight(): Promise<number | null> {
-    try {
-        const output = await $`osascript -e 'tell application "Finder" to get bounds of window of desktop'`.text();
-        const parts = output.split(/,\s*/).map(v => Number.parseInt(v.trim(), 10)).filter(n => !Number.isNaN(n));
-        if(parts.length === 4) {
-            const [, y1, , y2] = parts;
-            return y2 - y1;
-        }
-        return null;
-    } catch (error) {
-        console.error("Unable to determine monitor height", error);
-        return null;
-    }
+function getDisplayByName(
+	regExp: string,
+	displays: DisplayInfo[],
+): DisplayInfo | undefined {
+	return displays.find((d) => new RegExp(regExp, "i").test(d.name));
+}
+
+function getDisplayById(
+	id: number,
+	displays: DisplayInfo[],
+): DisplayInfo | undefined {
+	return displays.find((d) => d.id === id);
+}
+
+function getMainDisplay(displays: DisplayInfo[]): DisplayInfo | undefined {
+	return displays.find((d) => d.isMain);
+}
+
+function selectDisplay(layout: Layout, displays: DisplayInfo[]): DisplayInfo {
+	let selectedDisplay: DisplayInfo | undefined;
+	if (layout.display) {
+		if (
+			typeof layout.display === "string" &&
+			Number.isNaN(Number(layout.display))
+		) {
+			const isAlias = Object.values(DisplayAlias).includes(
+				layout.display as DisplayAlias,
+			);
+			if (isAlias) {
+				selectedDisplay = getDisplayByAlias(
+					layout.display as DisplayAlias,
+					displays,
+				);
+			} else {
+				selectedDisplay = getDisplayByName(layout.display, displays);
+			}
+		} else if (
+			typeof layout.display === "number" ||
+			!Number.isNaN(Number(layout.display))
+		) {
+			const displayId = Number(layout.display);
+			selectedDisplay = getDisplayById(displayId, displays);
+		}
+	}
+
+	if (!selectedDisplay) {
+		console.log(
+			`Display not found: ${layout.display}. Please specify a valid display name, alias, or ID. Defaulting to the main display.`,
+		);
+		selectedDisplay = getDisplayByAlias(
+			DisplayAlias.Main,
+			displays,
+		) as DisplayInfo;
+	}
+
+	console.log(
+		`Using display: ${selectedDisplay.name} (${selectedDisplay.width}x${
+			selectedDisplay.height
+		}) (${selectedDisplay.isMain ? "main" : "secondary"}, ${
+			selectedDisplay.isInternal ? "internal" : "external"
+		})`,
+	);
+
+	return selectedDisplay;
+}
+
+/**
+ * Return the width of the current (primary) display in pixels.
+ * Uses AppleScript because Aerospace does not expose this information.
+ */
+async function getDisplayWidth(): Promise<number | null> {
+	return selectedDisplay?.width ?? null;
+}
+
+async function getDisplayHeight(): Promise<number | null> {
+	return selectedDisplay?.height ?? null;
 }
 
 // Functions
@@ -268,54 +438,71 @@ async function traverseTreeReposition(tree: LayoutItem[], depth = 0) {
 	}
 }
 
-async function resizeWindow(windowId: string, size: Size, dimension: "width" | "height") {
-    console.log("Resizing window", windowId, "to", size);
-	const screenDimension = dimension === "width" ? await getMonitorWidth() : await getMonitorHeight();
+async function resizeWindow(
+	windowId: string,
+	size: Size,
+	dimension: "width" | "height",
+) {
+	console.log("Resizing window", windowId, "to", size);
+	const screenDimension =
+		dimension === "width" ? await getDisplayWidth() : await getDisplayHeight();
 	const [numerator, denominator] = size.split("/").map(Number);
-    console.log("Screen dimension:", screenDimension);
-    console.log("Numerator:", numerator);
-    console.log("Denominator:", denominator);
+	console.log("Screen dimension:", screenDimension);
+	console.log("Numerator:", numerator);
+	console.log("Denominator:", denominator);
 	if (!screenDimension || !numerator || !denominator) {
-		console.error("Unable to determine monitor width");
+		console.error("Unable to determine display width");
 		return;
 	}
-	const newWidth = screenDimension * (numerator / denominator);
-    console.log("New width:", newWidth);
-    console.log("Command:", `aerospace resize --window-id ${windowId} ${dimension} ${newWidth}`);
+	const newWidth = Math.floor(screenDimension * (numerator / denominator));
+	console.log("New width:", newWidth);
+	console.log(
+		"Command:",
+		`aerospace resize --window-id ${windowId} ${dimension} ${newWidth}`,
+	);
 	await $`aerospace resize --window-id ${windowId} ${dimension} ${newWidth}`.nothrow();
 }
 
 function getDimension(item: LayoutItem) {
-    console.log("Item:", item);
-    if("orientation" in item) {
-        return item.orientation === "horizontal" ? "width" : "height";
-    }
-    return layout.orientation === "horizontal" ? "width" : "height";
+	console.log("Item:", item);
+	if ("orientation" in item) {
+		return item.orientation === "horizontal" ? "width" : "height";
+	}
+	return layout.orientation === "horizontal" ? "width" : "height";
 }
 
 async function traverseTreeResize(
 	tree: LayoutItem[],
 	depth = 0,
-    parent: LayoutItem | null = null
+	parent: LayoutItem | null = null,
 ) {
 	for await (const [i, item] of tree.entries()) {
 		if ("size" in item && "bundleId" in item) {
-            const windowId = await getWindowId(item.bundleId);
-       
-            const dimension = getDimension(parent ?? item);
+			const windowId = await getWindowId(item.bundleId);
+
+			const dimension = getDimension(parent ?? item);
 			await resizeWindow(windowId, item.size, dimension);
 		} else if ("windows" in item) {
 			const firstChildWindow = item.windows[0];
-            console.log("Parent:", parent, "Item:", item);
-            console.log("First child window:", firstChildWindow);
+			console.log("Parent:", parent, "Item:", item);
+			console.log("First child window:", firstChildWindow);
 			if (
 				"size" in item &&
 				firstChildWindow &&
 				"bundleId" in firstChildWindow
 			) {
-                console.log("Resizing first child window:", firstChildWindow.bundleId, "to", item.size);
-                const windowId = await getWindowId(firstChildWindow.bundleId);
-                const dimension = parent ? getDimension(parent) : layout.orientation === "horizontal" ? "width" : "height";
+				console.log(
+					"Resizing first child window:",
+					firstChildWindow.bundleId,
+					"to",
+					item.size,
+				);
+				const windowId = await getWindowId(firstChildWindow.bundleId);
+				const dimension = parent
+					? getDimension(parent)
+					: layout.orientation === "horizontal"
+						? "width"
+						: "height";
 				await resizeWindow(windowId, item.size, dimension);
 			}
 			await traverseTreeResize(item.windows, depth + 1, item);
