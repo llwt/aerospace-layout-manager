@@ -1,76 +1,75 @@
 {
-    "$schema": "https://raw.githubusercontent.com/CarterMcAlister/aerospace-layout-manager/main/layoutConfig.schema.json",
-    "stashWorkspace": "S",
-    "layouts": {
-        "dev": {
-            "workspace": "1",
-            "layout": "h_tiles",
-            "orientation": "horizontal",
-            "windows": [
-                {
-                    "bundleId": "com.apple.Xcode"
-                },
-                {
-                    "orientation": "vertical",
-                    "windows": [
-                        {
-                            "bundleId": "us.zoom.xos"
-                        },
-                        {
-                            "bundleId": "com.apple.Terminal"
-                        }
-                    ]
-                }
-            ]
-        },
-        "web": {
-            "workspace": "2",
-            "layout": "h_tiles",
-            "orientation": "horizontal",
-            "windows": [
-                {
-                    "bundleId": "md.obsidian",
-                    "size": "1/4"
-                },
-                {
-                    "bundleId": "company.thebrowser.Browser",
-                    "size": "1/2"
-                },
-                {
-                    "bundleId": "com.cron.electron",
-                    "size": "1/4"
-                }
-                
-            ]
-        },
-        "utils": {
-            "workspace": "3",
-            "layout": "h_tiles",
-            "orientation": "horizontal",
-            "windows": [
-                {
-                    "orientation": "vertical",
-                    "windows": [
-                        {
-                            "bundleId": "md.obsidian"
-                        },
-                        {
-                            "bundleId": "com.cron.electron"
-                        }
-                    ]
-                },
-                {
-                    "orientation": "vertical",
-                    "windows": [
-                        {
-                            "bundleId": "com.github.GitHubClient"
-                        },
-                        {
-                            "bundleId": "dev.warp.Warp-Stable"
-                        }
-                    ]
-                }
-            ]
-        }
-    }
+	"$schema": "https://raw.githubusercontent.com/CarterMcAlister/aerospace-layout-manager/main/layoutConfig.schema.json",
+	"stashWorkspace": "S",
+	"layouts": {
+		"dev": {
+			"workspace": "1",
+			"layout": "h_tiles",
+			"orientation": "horizontal",
+			"windows": [
+				{
+					"bundleId": "com.apple.Xcode"
+				},
+				{
+					"orientation": "vertical",
+					"windows": [
+						{
+							"bundleId": "us.zoom.xos"
+						},
+						{
+							"bundleId": "com.apple.Terminal"
+						}
+					]
+				}
+			]
+		},
+		"web": {
+			"workspace": "2",
+			"layout": "h_tiles",
+			"orientation": "horizontal",
+			"windows": [
+				{
+					"bundleId": "md.obsidian",
+					"size": "1/4"
+				},
+				{
+					"bundleId": "company.thebrowser.Browser",
+					"size": "1/2"
+				},
+				{
+					"bundleId": "com.cron.electron",
+					"size": "1/4"
+				}
+			]
+		},
+		"utils": {
+			"workspace": "3",
+			"layout": "h_tiles",
+			"orientation": "horizontal",
+			"windows": [
+				{
+					"orientation": "vertical",
+					"windows": [
+						{
+							"bundleId": "md.obsidian"
+						},
+						{
+							"bundleId": "com.cron.electron"
+						}
+					]
+				},
+				{
+					"orientation": "vertical",
+					"windows": [
+						{
+							"bundleId": "com.github.GitHubClient"
+						},
+						{
+							"bundleId": "dev.warp.Warp-Stable"
+						}
+					]
+				}
+			]
+		}
+	}
 }
