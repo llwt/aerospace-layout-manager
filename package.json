@@ -10,13 +10,12 @@
 		"build:mac": "bun build --compile ./index.ts --minify --sourcemap --target=bun-darwin-arm64 --outfile build/aerospace-layout-manager-darwin-arm64",
 		"build:mac-intel": "bun build --compile ./index.ts --minify --sourcemap --target=bun-darwin-x64 --outfile build/aerospace-layout-manager-darwin-x64",
 		"format": "biome format --write",
-		"lint": "biome lint"
+		"lint": "biome lint",
+		"typecheck": "tsc --noEmit"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.9.4",
-		"@types/bun": "latest"
-	},
-	"peerDependencies": {
+		"@types/bun": "latest",
 		"typescript": "^5"
 	},
 	"trustedDependencies": ["@biomejs/biome"]
