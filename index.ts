@@ -27,7 +27,7 @@ interface LayoutWindowWithSize extends LayoutWindow {
 
 interface LayoutGroup {
   orientation: Orientation;
-	layout: WorkspaceLayout;
+  layout: WorkspaceLayout;
   windows: LayoutWindow[];
 }
 
@@ -200,7 +200,13 @@ async function getWindowsInWorkspace(workspace: string): Promise<
 }
 
 async function joinItemWithPreviousWindow(windowId: string) {
-  await $`aerospace join-with --window-id ${windowId} left`.nothrow();
+  console.log("Joining window with previous window", windowId);
+  await $`aerospace join-with --window-id ${windowId} left`;
+}
+
+async function moveWindowLeft(windowId: string) {
+  console.log("Moving window left", windowId);
+  await $`aerospace move --window-id ${windowId} left`;
 }
 
 async function focusWindow(windowId: string) {
@@ -373,6 +379,18 @@ async function getWindowId(bundleId: string) {
   return windowId;
 }
 
+async function getAllWindowIds(bundleId: string) {
+  const bundleJson =
+    await $`aerospace list-windows --monitor all --app-bundle-id "${bundleId}" --json`.json();
+
+  if (bundleJson.length === 0) {
+    console.log("No windows found for", bundleId);
+    return [];
+  }
+
+  return bundleJson.map((window: any) => window["window-id"]) as string[];
+}
+
 async function launchIfNotRunning(bundleId: string) {
   const isRunning =
     (await $`osascript -e "application id \"${bundleId}\" is running" | grep -q true`.text()) ===
@@ -382,16 +400,16 @@ async function launchIfNotRunning(bundleId: string) {
   }
 }
 
-async function ensureWindow(bundleId: string) {
+async function ensureWindow(bundleId: string): Promise<string[]> {
   await launchIfNotRunning(bundleId);
   for await (const i of Array(30)) {
-    const windowId = await getWindowId(bundleId);
-    if (windowId) {
-      return windowId;
+    const windowIds = await getAllWindowIds(bundleId);
+    if (windowIds.length > 0) {
+      return windowIds;
     }
     await new Promise((resolve) => setTimeout(resolve, 100));
   }
-  return null;
+  return [];
 }
 
 async function setWorkspaceLayout(workspace: string, layout: WorkspaceLayout) {
@@ -414,10 +432,12 @@ async function setWindowLayout(windowId: string, layout: WorkspaceLayout) {
 async function traverseTreeMove(tree: LayoutItem[], depth = 0) {
   for await (const [i, item] of tree.entries()) {
     if ("bundleId" in item) {
-      const windowId = await ensureWindow(item.bundleId);
+      const windowIds = await ensureWindow(item.bundleId);
 
-      if (windowId) {
-        await moveWindow(windowId, layout.workspace);
+      if (windowIds.length > 0) {
+        for (const windowId of windowIds) {
+          await moveWindow(windowId, layout.workspace);
+        }
       }
     } else if ("windows" in item) {
       await traverseTreeMove(item.windows, depth + 1);
@@ -426,34 +446,57 @@ async function traverseTreeMove(tree: LayoutItem[], depth = 0) {
 }
 
 async function traverseTreeReposition(tree: LayoutItem[], depth = 0) {
-	let lastWindowId: string | null = null;
+  let lastWindowId: string | null = null;
 
+  let windowGroupIndex = 0;
   for await (const [i, item] of tree.entries()) {
-    if (depth === 0 && i === 0) {
-      // set workspace layout after moving first window
-      await flattenWorkspace(layout.workspace);
-      await setWorkspaceLayout(layout.workspace, layout.layout);
-    }
-    if ("bundleId" in item) {
-      if (depth > 0 && i > 0) {
-        // subsequent windows in a group should be joined with the previous window
-        const windowId = await getWindowId(item.bundleId);
-        if (windowId) {
-          await focusWindow(windowId);
-          await joinItemWithPreviousWindow(windowId);
-        }
-				lastWindowId = windowId;
-      }
-    } else if ("windows" in item) {
+    if ("windows" in item) {
       console.log("section:", item.orientation, "depth:", depth);
-      const lastWindowId = await traverseTreeReposition(item.windows, depth + 1);
-			if (item.layout && lastWindowId) {
-				setWindowLayout(lastWindowId, item.layout);
-			}
+      const lastWindowId = await traverseTreeReposition(
+        item.windows,
+        depth + 1
+      );
+      if (item.layout && lastWindowId) {
+        setWindowLayout(lastWindowId, item.layout);
+      }
+
+      continue;
+    }
+
+    if (!("bundleId" in item)) {
+      throw new Error("windows must contain more windows or a bundleId");
+    }
+
+    // if (depth === 0) {
+    //   continue;
+    // }
+
+    // For the first window in each group, do nothing since we will merge
+    // later windows into the first
+    if (windowGroupIndex === 0) {
+      windowGroupIndex++;
+      continue;
+    }
+
+    // subsequent windows in a group should be joined with the previous window
+    const windowIds = await getAllWindowIds(item.bundleId);
+    for (const windowId of windowIds) {
+      await focusWindow(windowId);
+
+      // For the first window in each group, join with the previous window
+      // For subsequent windows, just move it into the group
+      if (windowGroupIndex === 1) {
+        await joinItemWithPreviousWindow(windowId);
+      } else {
+        await moveWindowLeft(windowId);
+      }
+
+      windowGroupIndex++;
+      lastWindowId = windowId;
     }
   }
 
-	return lastWindowId;
+  return lastWindowId;
 }
 
 async function resizeWindow(
@@ -531,6 +574,8 @@ async function traverseTreeResize(
 // Main
 await clearWorkspace(layout.workspace);
 await traverseTreeMove(layout.windows);
+await flattenWorkspace(layout.workspace);
+await setWorkspaceLayout(layout.workspace, layout.layout);
 await traverseTreeReposition(layout.windows);
 await switchToWorkspace(layout.workspace);
 await traverseTreeResize(layout.windows);
