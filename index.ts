@@ -25,21 +25,21 @@ interface LayoutWindowWithSize extends LayoutWindow {
   size: Size;
 }
 
-interface LayoutGroup {
+interface LayoutContainer {
   orientation: Orientation;
   layout: WorkspaceLayout;
   windows: LayoutWindow[];
 }
 
-interface LayoutGroupWithSize extends LayoutGroup {
+interface LayoutContainerWithSize extends LayoutContainer {
   size: Size;
 }
 
 type LayoutItem =
   | LayoutWindow
-  | LayoutGroup
+  | LayoutContainer
   | LayoutWindowWithSize
-  | LayoutGroupWithSize;
+  | LayoutContainerWithSize;
 
 type Layout = {
   workspace: string;
